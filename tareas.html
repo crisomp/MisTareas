@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduControl - Gestión Académica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .modal-overlay { display: none; }
+        .modal-overlay.active { display: flex; }
+        .task-completed { text-decoration: line-through; color: #94a3b8; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse-soft { animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+    <div class="max-w-2xl mx-auto p-4 md:p-8">
+        <!-- Encabezado -->
+        <header class="mb-8 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-slate-900 rounded-xl text-white shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-slate-900 tracking-tight">EduControl</h1>
+                    <div class="flex items-center gap-2">
+                        <p class="text-slate-500 text-sm">Minimal Dark Theme</p>
+                        <span id="notifStatus" class="hidden h-2 w-2 rounded-full bg-emerald-500 animate-pulse-soft" title="Notificaciones activas"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button id="requestNotifBtn" class="p-3 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all shadow-sm group relative" title="Activar Notificaciones">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                </button>
+                <button id="openSubjectBtn" class="p-3 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all shadow-sm" title="Materias">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Resumen de Progreso -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8 flex items-center gap-6">
+            <div class="h-16 w-16 flex-shrink-0 relative">
+                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="16" fill="none" class="stroke-slate-100" stroke-width="3"></circle>
+                    <circle id="progressCircle" cx="18" cy="18" r="16" fill="none" class="stroke-slate-900 transition-all duration-700" stroke-width="3" stroke-dasharray="0, 100" stroke-linecap="round"></circle>
+                </svg>
+                <span id="progressText" class="absolute inset-0 flex items-center justify-center text-xs font-bold">0%</span>
+            </div>
+            <div>
+                <h2 class="text-lg font-semibold text-slate-800">Avance Académico</h2>
+                <p id="statsSubtitle" class="text-slate-500 text-sm">0 de 0 tareas logradas</p>
+            </div>
+        </div>
+
+        <!-- Formulario de Tarea -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-6">
+            <div class="p-4 space-y-4 bg-slate-50/30">
+                <div class="relative flex items-center">
+                    <input type="text" id="taskInput" placeholder="¿Qué tarea tienes pendiente?" class="w-full pl-4 pr-12 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-slate-900 outline-none transition-all">
+                    <button id="addTaskBtn" class="absolute right-2 p-2 bg-slate-900 text-white rounded-lg hover:bg-black transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                </div>
+                <div class="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-500">
+                    <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        <input type="date" id="dateInput" class="outline-none bg-transparent cursor-pointer">
+                    </div>
+                    <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                        <select id="subjectSelect" class="outline-none bg-transparent cursor-pointer min-w-[100px]">
+                            <option value="">Sin Materia</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="flex p-4 gap-2 border-b border-slate-100 overflow-x-auto" id="filters">
+                <button data-filter="all" class="px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all bg-slate-900 text-white">Todas</button>
+                <button data-filter="pending" class="px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all bg-slate-100 text-slate-500">Pendientes</button>
+                <button data-filter="completed" class="px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all bg-slate-100 text-slate-500">Hechas</button>
+            </div>
+
+            <!-- Lista de Tareas -->
+            <ul id="taskList" class="divide-y divide-slate-100 min-h-[300px]">
+                <!-- Las tareas se inyectan aquí -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- Modal Materias -->
+    <div id="subjectModal" class="modal-overlay fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-6 border-b flex items-center justify-between">
+                <h3 class="text-xl font-bold text-slate-800">Mis Materias</h3>
+                <button id="closeSubjectBtn" class="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4 mb-6">
+                    <input type="text" id="subjectNameInput" placeholder="Ej. Álgebra Lineal" class="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-slate-900">
+                    <div class="flex flex-wrap gap-2" id="colorPicker">
+                        <!-- Colores se inyectan aquí -->
+                    </div>
+                    <button id="saveSubjectBtn" class="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-black transition-colors shadow-lg shadow-slate-200">Añadir Materia</button>
+                </div>
+                <div id="subjectsList" class="max-h-60 overflow-y-auto space-y-2 pr-1">
+                    <!-- Materias se inyectan aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de colores
+        const AVAILABLE_COLORS = [
+            { id: 1, name: 'Gris', bg: 'bg-slate-200', text: 'text-slate-800', border: 'border-slate-300' },
+            { id: 2, name: 'Azul', bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
+            { id: 3, name: 'Verde', bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' },
+            { id: 4, name: 'Rojo', bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200' },
+            { id: 5, name: 'Morado', bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' }
+        ];
+
+        // Estado inicial
+        let tasks = JSON.parse(localStorage.getItem('edu_tasks')) || [];
+        let subjects = JSON.parse(localStorage.getItem('edu_subjects')) || [];
+        let notifiedTasks = new Set(); // Para no repetir notificaciones en la misma sesión
+        let currentFilter = 'all';
+        let selectedColor = AVAILABLE_COLORS[0];
+
+        // Elementos DOM
+        const taskList = document.getElementById('taskList');
+        const subjectSelect = document.getElementById('subjectSelect');
+        const subjectsList = document.getElementById('subjectsList');
+        const colorPicker = document.getElementById('colorPicker');
+        const subjectModal = document.getElementById('subjectModal');
+        const notifStatus = document.getElementById('notifStatus');
+
+        // Inicialización
+        function init() {
+            renderColorPicker();
+            renderSubjects();
+            renderTasks();
+            updateStats();
+            checkNotificationPermission();
+            
+            // Revisar tareas críticas cada 30 segundos
+            setInterval(checkUpcomingTasks, 30000);
+            setTimeout(checkUpcomingTasks, 2000); // Primera revisión tras cargar
+        }
+
+        // --- LÓGICA DE NOTIFICACIONES ---
+        function checkNotificationPermission() {
+            if (!("Notification" in window)) return;
+            
+            if (Notification.permission === "granted") {
+                notifStatus.classList.remove('hidden');
+            }
+        }
+
+        async function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                alert("Tu navegador no soporta notificaciones.");
+                return;
+            }
+
+            const permission = await Notification.requestPermission();
+            if (permission === "granted") {
+                notifStatus.classList.remove('hidden');
+                new Notification("EduControl", { body: "¡Notificaciones activadas con éxito!", icon: "https://cdn-icons-png.flaticon.com/512/1160/1160358.png" });
+            }
+        }
+
+        function checkUpcomingTasks() {
+            if (Notification.permission !== "granted") return;
+
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            tasks.forEach(task => {
+                if (task.completed || !task.dueDate || notifiedTasks.has(task.id)) return;
+
+                const target = new Date(task.dueDate);
+                target.setHours(0,0,0,0);
+                const diffDays = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+
+                // Si falta 1 día o vence hoy
+                if (diffDays === 1 || diffDays === 0) {
+                    const msg = diffDays === 1 
+                        ? `Mañana vence: ${task.text}` 
+                        : `¡Hoy vence!: ${task.text}`;
+                    
+                    new Notification("Tarea Próxima", {
+                        body: msg,
+                        icon: "https://cdn-icons-png.flaticon.com/512/1160/1160358.png",
+                        tag: task.id // Evita duplicados en el centro de notificaciones
+                    });
+                    
+                    notifiedTasks.add(task.id);
+                }
+            });
+        }
+
+        // --- RENDERIZADORES ---
+        function renderColorPicker() {
+            colorPicker.innerHTML = AVAILABLE_COLORS.map(color => `
+                <button onclick="selectColor(${color.id})" 
+                        class="w-8 h-8 rounded-full border-2 ${color.bg} ${selectedColor.id === color.id ? 'border-slate-900 scale-110' : 'border-transparent hover:scale-105'} transition-all">
+                </button>
+            `).join('');
+        }
+
+        function selectColor(id) {
+            selectedColor = AVAILABLE_COLORS.find(c => c.id === id);
+            renderColorPicker();
+        }
+
+        function renderSubjects() {
+            subjectSelect.innerHTML = '<option value="">Sin Materia</option>' + 
+                subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            
+            subjectsList.innerHTML = subjects.map(s => `
+                <div class="flex items-center justify-between p-3 rounded-xl border ${s.color.bg} ${s.color.border}">
+                    <span class="font-bold text-sm ${s.color.text}">${s.name}</span>
+                    <button onclick="deleteSubject('${s.id}')" class="text-slate-400 hover:text-red-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function getRemainingInfo(dueDate) {
+            if (!dueDate) return null;
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const target = new Date(dueDate);
+            target.setHours(0,0,0,0);
+            const diff = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+
+            if (diff === 0) return { text: "Vence hoy", color: "text-red-500 font-bold" };
+            if (diff < 0) return { text: `Vencida (${Math.abs(diff)}d)`, color: "text-red-600 font-bold" };
+            if (diff === 1) return { text: "Vence mañana", color: "text-orange-500 font-semibold" };
+            return { text: `Faltan ${diff} días`, color: "text-slate-500" };
+        }
+
+        function renderTasks() {
+            const filtered = tasks.filter(t => {
+                if (currentFilter === 'pending') return !t.completed;
+                if (currentFilter === 'completed') return t.completed;
+                return true;
+            });
+
+            taskList.innerHTML = filtered.length === 0 
+                ? '<div class="p-20 text-center text-slate-400">No hay tareas que mostrar</div>'
+                : filtered.map(t => {
+                    const subject = subjects.find(s => s.id === t.subjectId);
+                    const deadline = getRemainingInfo(t.dueDate);
+                    
+                    return `
+                        <li class="p-4 flex items-start justify-between group hover:bg-slate-50 transition-colors">
+                            <div class="flex items-start gap-4">
+                                <button onclick="toggleTask('${t.id}')" class="mt-1 transition-colors ${t.completed ? 'text-slate-900' : 'text-slate-300'}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${t.completed ? 'currentColor' : '#cbd5e1'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        ${t.completed ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>' : '<circle cx="12" cy="12" r="10"></circle>'}
+                                    </svg>
+                                </button>
+                                <div>
+                                    <p class="font-medium ${t.completed ? 'task-completed' : 'text-slate-700'}">${t.text}</p>
+                                    <div class="flex flex-wrap gap-2 mt-2">
+                                        ${subject ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded border ${subject.color.bg} ${subject.color.text} ${subject.color.border}">${subject.name.toUpperCase()}</span>` : ''}
+                                        ${t.dueDate && !t.completed ? `<span class="text-[10px] flex items-center gap-1 ${deadline.color}"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>${deadline.text}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="deleteTask('${t.id}')" class="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </button>
+                        </li>
+                    `;
+                }).join('');
+        }
+
+        function updateStats() {
+            const total = tasks.length;
+            const completed = tasks.filter(t => t.completed).length;
+            const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+            
+            document.getElementById('progressCircle').setAttribute('stroke-dasharray', `${percent}, 100`);
+            document.getElementById('progressText').innerText = `${percent}%`;
+            document.getElementById('statsSubtitle').innerText = `${completed} de ${total} tareas logradas`;
+        }
+
+        // --- ACCIONES ---
+        document.getElementById('addTaskBtn').onclick = () => {
+            const input = document.getElementById('taskInput');
+            const dateInput = document.getElementById('dateInput');
+            const subInput = document.getElementById('subjectSelect');
+
+            if (!input.value.trim()) return;
+
+            tasks.unshift({
+                id: Date.now().toString(),
+                text: input.value.trim(),
+                completed: false,
+                dueDate: dateInput.value || null,
+                subjectId: subInput.value || null
+            });
+
+            input.value = '';
+            dateInput.value = '';
+            subInput.value = '';
+            
+            saveAndRender();
+        };
+
+        document.getElementById('saveSubjectBtn').onclick = () => {
+            const input = document.getElementById('subjectNameInput');
+            if (!input.value.trim()) return;
+
+            subjects.push({
+                id: Date.now().toString(),
+                name: input.value.trim(),
+                color: selectedColor
+            });
+
+            input.value = '';
+            saveAndRender();
+            renderSubjects();
+        };
+
+        window.toggleTask = (id) => {
+            tasks = tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t);
+            saveAndRender();
+        };
+
+        window.deleteTask = (id) => {
+            tasks = tasks.filter(t => t.id !== id);
+            saveAndRender();
+        };
+
+        window.deleteSubject = (id) => {
+            subjects = subjects.filter(s => s.id !== id);
+            saveAndRender();
+            renderSubjects();
+        };
+
+        function saveAndRender() {
+            localStorage.setItem('edu_tasks', JSON.stringify(tasks));
+            localStorage.setItem('edu_subjects', JSON.stringify(subjects));
+            renderTasks();
+            updateStats();
+        }
+
+        // --- EVENTOS DE UI ---
+        document.getElementById('openSubjectBtn').onclick = () => subjectModal.classList.add('active');
+        document.getElementById('closeSubjectBtn').onclick = () => subjectModal.classList.remove('active');
+        document.getElementById('requestNotifBtn').onclick = requestNotificationPermission;
+        
+        document.getElementById('filters').onclick = (e) => {
+            if (e.target.tagName !== 'BUTTON') return;
+            currentFilter = e.target.dataset.filter;
+            
+            document.querySelectorAll('#filters button').forEach(btn => {
+                btn.classList.remove('bg-slate-900', 'text-white');
+                btn.classList.add('bg-slate-100', 'text-slate-500');
+            });
+            e.target.classList.add('bg-slate-900', 'text-white');
+            renderTasks();
+        };
+
+        init();
+    </script>
+</body>
+</html>
